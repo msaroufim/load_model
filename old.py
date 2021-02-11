@@ -48,11 +48,6 @@ def testInput():
             g1.ParseFromString(serialized_graph)
             tf.import_graph_def(g1, name='')
     
-    # How do I make this play nicely with the gdv scope?
-    # with ipu_scope("/device:IPU:0"):
-        # gdv = ipu_compiler.compile(gdv) # Error 'Graph' object is not Callable
-        # gdb = ipu_compiler.compile(tf.function(gdv)) # unsupported callable 
-
     with tf.Session(graph=gdv) as sess:
         inp_tensor=gdv.get_tensor_by_name('input:0')
         out_tensor=gdv.get_tensor_by_name('InceptionV3/Predictions/Softmax:0')
