@@ -128,5 +128,5 @@ with tf.Session() as sess:
   toc = time.time()
   duration = toc - tic
   print(f'Total duration: {duration}')
-  throughput = 2000 / duration 
+  throughput = num_examples / duration 
   print(f'Throughput: {throughput} im/s')
