@@ -67,6 +67,8 @@ def model(features):
     with tf.gfile.GFile('model.pb', 'rb') as fid:
         serialized_graph = fid.read()
         g1.ParseFromString(serialized_graph)
+    from tensorflow.graph_util import extract_sub_graph
+    g1 = extract_sub_graph(g1,['InceptionV3/Predictions/Softmax'])
     output = tf.import_graph_def(g1,
                               name='',
                               input_map={'input:0': features},
@@ -88,7 +90,7 @@ def testInput():
     # 2. CPU and known batch dim (fails)
     # 3. IPU and known batch dim (also fails)
 
-    scenario = 2
+    scenario = 3
 
     if scenario == 1:
         x = tf.placeholder(tf.float32, (None, 100, 221, 6))
@@ -103,9 +105,9 @@ def testInput():
             output = ipu.ipu_compiler.compile(wrapped_model, [])
 
     with tf.Session() as sess:
-        # sess.run(infeed.initializer)
-        # sess.run(output)
-        # outfeed_dequeue_op = outfeed.dequeue()
+        sess.run(infeed.initializer)
+        sess.run(output)
+        outfeed_dequeue_op = outfeed.dequeue()
         pass
 
 
