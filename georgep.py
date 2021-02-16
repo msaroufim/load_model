@@ -17,7 +17,8 @@ config = ipu.utils.auto_select_ipus(config, 1)
 ipu.utils.configure_ipu_system(config)
 
 # Batch data in 
-batches_per_step = 50 
+batches_per_step = 50
+batch_size = 22 
 gradient_accumulation_batches = 32
 inference_batches_per_step = batches_per_step * gradient_accumulation_batches
 
@@ -31,9 +32,7 @@ def data_fn(num_examples=1000):
     dtype = np.float32
 
     # bs = args.batch_size_train if mode == tf.estimator.ModeKeys.TRAIN else args.batch_size_infer
-    bs = 100
-    batches_per_step = 50
-    l = batches_per_step * bs
+    l = batches_per_step * batch_size
     # if count_only:
         # return l * 10
 
@@ -43,11 +42,11 @@ def data_fn(num_examples=1000):
     # ValueError: Cannot create a tensor proto whose content is larger than 2GB.
     # Error goes away if you enable eager mode 
     dataset = tf.data.Dataset.from_tensor_slices(x)
-    dataset = dataset.batch(bs, drop_remainder=True).prefetch(l).cache().repeat()
+    dataset = dataset.batch(batch_size, drop_remainder=True).prefetch(l).cache().repeat()
     
     return dataset
 
-num_examples = 1000
+num_examples = 100
 ds = data_fn(num_examples=num_examples)
 infeed = ipu.ipu_infeed_queue.IPUInfeedQueue(ds,'infeed', replication_factor=1)
 outfeed = ipu.ipu_outfeed_queue.IPUOutfeedQueue('outfeed', replication_factor=1)
@@ -105,17 +104,24 @@ def testInput():
             output = ipu.ipu_compiler.compile(wrapped_model, [])
 
     import time
+    throughputs = []
+    num_iterations = 20
     with tf.Session() as sess:
-        tic = time.time()
         sess.run(infeed.initializer)
-        sess.run(output)
-        toc = time.time()
-        outfeed_dequeue_op = outfeed.dequeue()
 
-        duration = toc - tic
-        throughput = (100 * 50) / duration #batch size * batches per step / duration
-        print(f'Throughput {throughput} images/second')
-        pass
+        for i in range(num_iterations):
+            tic = time.time()
+            sess.run(output)
+            toc = time.time()
+            outfeed_dequeue_op = outfeed.dequeue()
+
+            duration = toc - tic
+            throughput = (batches_per_step * batch_size) / duration #batch size * batches per step * replication factor / duration
+            throughputs.append(throughput)
+            print(f'Throughput {throughput} images/second')
+
+    avg_throughput = sum(throughputs[1:]) / len(throughputs[1:]) #first run is not representative
+    print(f'Average Throughput over {num_iterations - 1} iterations: {avg_throughput} ')
 
 
 if __name__ == "__main__":
