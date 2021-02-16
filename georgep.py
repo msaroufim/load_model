@@ -23,9 +23,9 @@ config = ipu.utils.auto_select_ipus(config, 1)
 ipu.utils.configure_ipu_system(config)
 
 # Batch data in 
-batches_per_step = 100
-batch_size = 22 
-gradient_accumulation_batches = 32
+batches_per_step = 1000
+batch_size = 32 
+gradient_accumulation_batches = 1
 inference_batches_per_step = batches_per_step * gradient_accumulation_batches
 
 
@@ -124,7 +124,7 @@ def testInput():
             # session run outfeed op to see roundtrip time
 
             duration = toc - tic
-            throughput = (batches_per_step * gradient_accumulation_batches) / duration #batch size * batches per step * replication factor / duration
+            throughput = (batches_per_step * batch_size) / duration #batch size * batches per step * replication factor / duration
             throughputs.append(throughput)
             print(f'Throughput {throughput} images/second')
 
