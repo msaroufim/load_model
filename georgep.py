@@ -4,6 +4,12 @@ from __future__ import print_function
 import re
 from ast import literal_eval
 
+# TODO: set gradient accumulation to 1 and increase batch size as much as possible
+# TODO: see how big outfeed op is to get a sense of what my numerator is
+# TODO: Save proto file to convert to float 16
+# TODO: make sure to run export TF_POPLAR_FLAGS=--use_synthetic_data
+# TODO: Setup Python debugger
+
 import numpy as np
 import tensorflow.compat.v1 as tf
 from tensorflow.python import ipu
@@ -17,7 +23,7 @@ config = ipu.utils.auto_select_ipus(config, 1)
 ipu.utils.configure_ipu_system(config)
 
 # Batch data in 
-batches_per_step = 50
+batches_per_step = 100
 batch_size = 22 
 gradient_accumulation_batches = 32
 inference_batches_per_step = batches_per_step * gradient_accumulation_batches
@@ -63,7 +69,7 @@ def getExamples():
 def model(features):
     graph = tf.get_default_graph()
     g1 = tf.GraphDef()
-    with tf.gfile.GFile('model.pb', 'rb') as fid:
+    with tf.gfile.GFile('/home/marks/TestCase/model.pb', 'rb') as fid:
         serialized_graph = fid.read()
         g1.ParseFromString(serialized_graph)
     from tensorflow.graph_util import extract_sub_graph
@@ -114,9 +120,11 @@ def testInput():
             sess.run(output)
             toc = time.time()
             outfeed_dequeue_op = outfeed.dequeue()
+            prediction = sess.run(outfeed_dequeue_op) # size is (batches_per_step * gradient_accumulation_batches, batch size, 3)
+            # session run outfeed op to see roundtrip time
 
             duration = toc - tic
-            throughput = (batches_per_step * batch_size) / duration #batch size * batches per step * replication factor / duration
+            throughput = (batches_per_step * gradient_accumulation_batches) / duration #batch size * batches per step * replication factor / duration
             throughputs.append(throughput)
             print(f'Throughput {throughput} images/second')
 
