@@ -31,7 +31,7 @@ def data_fn(num_examples=1000):
     dtype = np.float32
 
     # bs = args.batch_size_train if mode == tf.estimator.ModeKeys.TRAIN else args.batch_size_infer
-    bs = 22
+    bs = 100
     batches_per_step = 50
     l = batches_per_step * bs
     # if count_only:
@@ -47,7 +47,7 @@ def data_fn(num_examples=1000):
     
     return dataset
 
-num_examples = 100
+num_examples = 1000
 ds = data_fn(num_examples=num_examples)
 infeed = ipu.ipu_infeed_queue.IPUInfeedQueue(ds,'infeed', replication_factor=1)
 outfeed = ipu.ipu_outfeed_queue.IPUOutfeedQueue('outfeed', replication_factor=1)
@@ -72,7 +72,7 @@ def model(features):
     output = tf.import_graph_def(g1,
                               name='',
                               input_map={'input:0': features},
-                              return_elements=['InceptionV3/Predictions/Softmax'])
+                              return_elements=['InceptionV3/Predictions/Softmax:0'])
     return output
 
 def wrapped_model():
@@ -104,10 +104,17 @@ def testInput():
         with tf.device('/device:IPU:0'):
             output = ipu.ipu_compiler.compile(wrapped_model, [])
 
+    import time
     with tf.Session() as sess:
+        tic = time.time()
         sess.run(infeed.initializer)
         sess.run(output)
+        toc = time.time()
         outfeed_dequeue_op = outfeed.dequeue()
+
+        duration = toc - tic
+        throughput = (100 * 50) / duration #batch size * batches per step / duration
+        print(f'Throughput {throughput} images/second')
         pass
 
 
