@@ -4,15 +4,11 @@ from __future__ import print_function
 import re
 from ast import literal_eval
 
-# TODO: set gradient accumulation to 1 and increase batch size as much as possible
-# TODO: see how big outfeed op is to get a sense of what my numerator is
-# TODO: Save proto file to convert to float 16
-# TODO: make sure to run export TF_POPLAR_FLAGS=--use_synthetic_data
-# TODO: Setup Python debugger
-
 import numpy as np
 import tensorflow.compat.v1 as tf
 from tensorflow.python import ipu
+from threading import Thread
+
 
 from google.protobuf import text_format
 from tensorflow.contrib import graph_editor as ge
@@ -25,31 +21,16 @@ ipu.utils.configure_ipu_system(config)
 # Batch data in 
 batches_per_step = 1000
 batch_size = 32 
-gradient_accumulation_batches = 1
-inference_batches_per_step = batches_per_step * gradient_accumulation_batches
+inference_batches_per_step = batches_per_step
 
 
 # tensorflow data loader function
 def data_fn(num_examples=1000):
-    # Generate random data
-    # dtype = np.float16 if args.dtype == 'float16' else np.float32
-
-    # Try mixed precision next
     dtype = np.float32
-
-    # bs = args.batch_size_train if mode == tf.estimator.ModeKeys.TRAIN else args.batch_size_infer
     l = batches_per_step * batch_size
-    # if count_only:
-        # return l * 10
-
     x = np.random.uniform(size=(num_examples, 100, 221, 6)).astype(dtype)
-
-    # This fails when dataset is very large
-    # ValueError: Cannot create a tensor proto whose content is larger than 2GB.
-    # Error goes away if you enable eager mode 
     dataset = tf.data.Dataset.from_tensor_slices(x)
     dataset = dataset.batch(batch_size, drop_remainder=True).prefetch(l).cache().repeat()
-    
     return dataset
 
 num_examples = 100
@@ -118,11 +99,12 @@ def testInput():
         for i in range(num_iterations):
             tic = time.time()
             sess.run(output)
-            toc = time.time()
+
+
             outfeed_dequeue_op = outfeed.dequeue()
             prediction = sess.run(outfeed_dequeue_op) # size is (batches_per_step * gradient_accumulation_batches, batch size, 3)
             # session run outfeed op to see roundtrip time
-
+            toc = time.time()
             duration = toc - tic
             throughput = (batches_per_step * batch_size) / duration #batch size * batches per step * replication factor / duration
             throughputs.append(throughput)
