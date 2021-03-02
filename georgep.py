@@ -27,10 +27,12 @@ inference_batches_per_step = batches_per_step
 # tensorflow data loader function
 def data_fn(num_examples=1000):
     dtype = np.float32
+    # dtype = np.float16
+    #dtype float16: ValueError: Input 0 of node InceptionV3/InceptionV3/Conv2d_1a_3x3/Conv2D was passed half from PopDatastreamInfeedDequeue:0 incompatible with expected float.
     l = batches_per_step * batch_size
     x = np.random.uniform(size=(num_examples, 100, 221, 6)).astype(dtype)
     dataset = tf.data.Dataset.from_tensor_slices(x)
-    dataset = dataset.batch(batch_size, drop_remainder=True).prefetch(l).cache().repeat()
+    dataset = dataset.batch(batch_size, drop_remainder=True).prefetch(l).cache()
     return dataset
 
 num_examples = 100
@@ -55,6 +57,8 @@ def model(features):
         g1.ParseFromString(serialized_graph)
     from tensorflow.graph_util import extract_sub_graph
     g1 = extract_sub_graph(g1,['InceptionV3/Predictions/Softmax'])
+    # Errors out
+    # g1 = tf.dtypes.cast(g1, np.float16)
     output = tf.import_graph_def(g1,
                               name='',
                               input_map={'input:0': features},

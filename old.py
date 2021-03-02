@@ -51,8 +51,8 @@ def testInput():
     with tf.Session(graph=gdv) as sess:
         inp_tensor=gdv.get_tensor_by_name('input:0')
         out_tensor=gdv.get_tensor_by_name('InceptionV3/Predictions/Softmax:0')
-        # image_np = getExamples()
-        image_np = getSyntheticExamples()
+        image_np = getExamples()
+        #image_np = getSyntheticExamples()
         np.set_printoptions(threshold=np.inf)
         
         import time
@@ -62,6 +62,7 @@ def testInput():
         # But doesn't seem to do anything either
         with ipu_scope("/device:IPU:0"):
             proba=sess.run(out_tensor,{inp_tensor:image_np})
+            print(proba)
         
         toc = time.time()
         duration = toc - tic
@@ -72,7 +73,7 @@ def testInput():
         print("Throughput: {0} im/s".format(num_images / duration))
 
         
-        #print(proba)
+        
 
 
 if __name__ == "__main__":
