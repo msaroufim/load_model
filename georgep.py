@@ -32,7 +32,7 @@ def data_fn(num_examples=1000):
     l = batches_per_step * batch_size
     x = np.random.uniform(size=(num_examples, 100, 221, 6)).astype(dtype)
     dataset = tf.data.Dataset.from_tensor_slices(x)
-    dataset = dataset.batch(batch_size, drop_remainder=True).prefetch(l).cache()
+    dataset = dataset.batch(batch_size, drop_remainder=True).prefetch(l).cache().repeat()
     return dataset
 
 num_examples = 100
